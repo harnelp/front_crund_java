@@ -1,0 +1,7 @@
+# Configuraciones del sistema
+.DS_Store
+Thumbs.db
+
+# Archivos de configuración del editor
+.idea/
+*.log

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CRUD Person List</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@3"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+</head>
+<body>
+<div id="app" class="container mt-5">
+    <h1 class="text-center mb-4">CRUD List</h1>
+    
+    <!-- Botón para crear usuario -->
+    <button @click="showCreateForm" class="btn btn-primary mb-3">Crear Usuario</button>
+    
+    <!-- Formulario de creación -->
+    <div v-if="isCreating" class="mb-4">
+        <h3>Crear Usuario</h3>
+        <form @submit.prevent="createPerson" class="p-3 border rounded bg-light">
+            <div class="mb-3">
+                <label class="form-label">Nombre:</label>
+                <input v-model="newPerson.name" type="text" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Teléfono:</label>
+                <input v-model="newPerson.phoneNumber" type="text" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Email:</label>
+                <input v-model="newPerson.emailAddress" type="email" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Dirección:</label>
+                <input v-model="newPerson.address.street" type="text" class="form-control mb-2" required placeholder="Calle">
+                <input v-model="newPerson.address.city" type="text" class="form-control" required placeholder="Ciudad">
+            </div>
+            <button type="submit" class="btn btn-success">Guardar</button>
+            <button @click="isCreating = false" class="btn btn-secondary">Cancelar</button>
+        </form>
+    </div>
+
+    <!-- Tabla con datos -->
+    <table class="table table-striped">
+        <thead class="table-dark">
+            <tr>
+                <th>ID</th>
+                <th>Nombre</th>
+                <th>Teléfono</th>
+                <th>Email</th>
+                <th>Dirección</th>
+                <th>Acciones</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr v-for="person in persons" :key="person.id">
+                <td>{{ person.id }}</td>
+                <td>{{ person.name }}</td>
+                <td>{{ person.phoneNumber }}</td>
+                <td>{{ person.emailAddress }}</td>
+                <td>{{ person.address ? `${person.address.street}, ${person.address.city}` : 'No address' }}</td>
+                <td>
+                    <button @click="showEditForm(person)" class="btn btn-warning btn-sm">Editar</button>
+                    <button @click="deletePerson(person.id)" class="btn btn-danger btn-sm">Eliminar</button>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+
+    <!-- Paginación -->
+    <div class="d-flex justify-content-between mt-3">
+        <button @click="prevPage" class="btn btn-secondary" :disabled="currentPage === 0">Previous</button>
+        <span class="align-self-center">Página {{ currentPage + 1 }} de {{ totalPages }}</span>
+        <button @click="nextPage" class="btn btn-secondary" :disabled="currentPage === totalPages - 1">Next</button>
+    </div>
+
+    <!-- Formulario de edición -->
+    <div v-if="isEditing" class="mt-4">
+        <h3>Editar Usuario</h3>
+        <form @submit.prevent="updatePerson" class="p-3 border rounded bg-light">
+            <div class="mb-3">
+                <label class="form-label">Nombre:</label>
+                <input v-model="selectedPerson.name" type="text" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Teléfono:</label>
+                <input v-model="selectedPerson.phoneNumber" type="text" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Email:</label>
+                <input v-model="selectedPerson.emailAddress" type="email" class="form-control" required>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Dirección:</label>
+                <input v-model="selectedPerson.address.street" type="text" class="form-control mb-2" required placeholder="Calle">
+                <input v-model="selectedPerson.address.city" type="text" class="form-control" required placeholder="Ciudad">
+            </div>
+            <button type="submit" class="btn btn-success">Guardar Cambios</button>
+            <button @click="isEditing = false" class="btn btn-secondary">Cancelar</button>
+        </form>
+    </div>
+</div>
+
+<script>
+const { createApp } = Vue;
+
+// variable donde se aloja url general para conectar back 
+const baseUrl = 'https://springboot-crud-x14q.onrender.com'; // se cambia esta URL según el entorno localhost:8080
+
+createApp({
+    data() {
+        return {
+            persons: [],
+            currentPage: 0,
+            totalPages: 0,
+            pageSize: 5,
+            isCreating: false,
+            isEditing: false,
+            newPerson: {
+                name: '',
+                phoneNumber: '',
+                emailAddress: '',
+                address: { street: '', city: '' }
+            },
+            selectedPerson: {}
+        };
+    },
+    methods: {
+        async fetchPersons(page) {
+            const response = await fetch(`${baseUrl}/api/persons/paged?page=${page}&size=${this.pageSize}`);
+            const data = await response.json();
+            this.persons = data.content;
+            this.currentPage = data.pageable.pageNumber;
+            this.totalPages = data.totalPages;
+        },
+        showCreateForm() {
+            this.isCreating = true;
+        },
+        async createPerson() {
+    try {
+        const response = await fetch(`${baseUrl}/api/persons`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(this.newPerson)
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        // Limpia el formulario
+        this.newPerson = {
+            name: '',
+            phoneNumber: '',
+            emailAddress: '',
+            address: { street: '', city: '' }
+        };
+        this.isCreating = false;
+        this.fetchPersons(this.currentPage); // Recarga la lista
+    } catch (error) {
+        console.error('Error al crear usuario:', error);
+        alert('Hubo un problema al intentar crear el usuario. Verifica la consola para más detalles.');
+    }
+}
+
+        ,
+        showEditForm(person) {
+            this.isEditing = true;
+            this.selectedPerson = { ...person };
+        },
+        async updatePerson() {
+            await fetch(`${baseUrl}/api/persons/${this.selectedPerson.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(this.selectedPerson)
+            });
+            this.isEditing = false;
+            this.fetchPersons(this.currentPage);
+        },
+        async deletePerson(id) {
+            if (!confirm('¿Estás seguro de que deseas eliminar este usuario?')) return;
+            await fetch(`${baseUrl}/api/persons/${id}`, {
+                method: 'DELETE'
+            });
+            this.fetchPersons(this.currentPage);
+        },
+        prevPage() {
+            if (this.currentPage > 0) this.fetchPersons(this.currentPage - 1);
+        },
+        nextPage() {
+            if (this.currentPage < this.totalPages - 1) this.fetchPersons(this.currentPage + 1);
+        }
+    },
+    mounted() {
+        this.fetchPersons(this.currentPage);
+    }
+}).mount('#app');
+</script>
+</body>
+</html>
