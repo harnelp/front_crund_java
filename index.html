@@ -112,8 +112,7 @@
 <script>
 const { createApp } = Vue;
 
-// variable donde se aloja url general para conectar back 
-const baseUrl = 'https://springboot-crud-x14q.onrender.com'; // Cambia según el entorno
+const baseUrl = 'https://springboot-crud-x14q.onrender.com';
 
 createApp({
     data() {
@@ -124,7 +123,7 @@ createApp({
             pageSize: 5,
             isCreating: false,
             isEditing: false,
-            isLoading: false, // Para el spinner
+            isLoading: false,
             newPerson: {
                 name: '',
                 phoneNumber: '',
@@ -140,31 +139,24 @@ createApp({
             try {
                 const response = await fetch(`${baseUrl}/api/persons/paged?page=${page}&size=${this.pageSize}`);
                 const data = await response.json();
-        
-                // Verifica si los datos devueltos tienen la estructura esperada
                 if (data._embedded && data._embedded.personList) {
-                    this.persons = data._embedded.personList; // Lista de personas
+                    this.persons = data._embedded.personList;
                 } else {
-                    this.persons = []; // Si no hay datos, asegura manejar una lista vacía
+                    this.persons = [];
                 }
-        
-                // Establece la paginación si está disponible
                 if (data.page) {
-                    this.currentPage = data.page.number; // Corrige propiedad del backend
-                    this.totalPages = data.page.totalPages; // Corrige propiedad del backend
+                    this.currentPage = data.page.number;
+                    this.totalPages = data.page.totalPages;
                 } else {
                     this.currentPage = 0;
                     this.totalPages = 1;
                 }
             } catch (error) {
                 console.error('Error al obtener usuarios:', error);
-                alert('Hubo un problema al cargar los usuarios. Verifica la consola para más detalles.');
+                alert('Hubo un problema al cargar los usuarios.');
             } finally {
                 this.isLoading = false;
             }
-        },
-        showCreateForm() {
-            this.isCreating = true;
         },
         async createPerson() {
             this.isLoading = true;
@@ -174,25 +166,63 @@ createApp({
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(this.newPerson)
                 });
-                if (!response.ok) {
-                    throw new Error(`Error: ${response.status}`);
-                }
-                this.newPerson = {
-                    name: '',
-                    phoneNumber: '',
-                    emailAddress: '',
-                    address: { street: '', city: '' }
-                };
+                if (!response.ok) throw new Error(`Error: ${response.status}`);
+                this.newPerson = { name: '', phoneNumber: '', emailAddress: '', address: { street: '', city: '' } };
                 this.isCreating = false;
                 this.fetchPersons(this.currentPage);
             } catch (error) {
                 console.error('Error al crear usuario:', error);
-                alert('Error al crear usuario. Intenta más tarde.');
+                alert('Hubo un problema al crear el usuario.');
             } finally {
                 this.isLoading = false;
             }
         },
-        // Otros métodos permanecen igual...
+        async updatePerson() {
+            this.isLoading = true;
+            try {
+                const response = await fetch(`${baseUrl}/api/persons/${this.selectedPerson.id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(this.selectedPerson)
+                });
+                if (!response.ok) throw new Error(`Error: ${response.status}`);
+                this.isEditing = false;
+                this.fetchPersons(this.currentPage);
+            } catch (error) {
+                console.error('Error al actualizar usuario:', error);
+                alert('Hubo un problema al actualizar el usuario.');
+            } finally {
+                this.isLoading = false;
+            }
+        },
+        async deletePerson(id) {
+            this.isLoading = true;
+            try {
+                const confirmed = confirm('¿Estás seguro de que deseas eliminar este usuario?');
+                if (!confirmed) return;
+                const response = await fetch(`${baseUrl}/api/persons/${id}`, { method: 'DELETE' });
+                if (!response.ok) throw new Error(`Error: ${response.status}`);
+                this.fetchPersons(this.currentPage);
+            } catch (error) {
+                console.error('Error al eliminar usuario:', error);
+                alert('Hubo un problema al eliminar el usuario.');
+            } finally {
+                this.isLoading = false;
+            }
+        },
+        prevPage() {
+            if (this.currentPage > 0) this.fetchPersons(this.currentPage - 1);
+        },
+        nextPage() {
+            if (this.currentPage < this.totalPages - 1) this.fetchPersons(this.currentPage + 1);
+        },
+        showCreateForm() {
+            this.isCreating = true;
+        },
+        showEditForm(person) {
+            this.isEditing = true;
+            this.selectedPerson = { ...person };
+        }
     },
     mounted() {
         this.fetchPersons(this.currentPage);
