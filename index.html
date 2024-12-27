@@ -140,12 +140,25 @@ createApp({
             try {
                 const response = await fetch(`${baseUrl}/api/persons/paged?page=${page}&size=${this.pageSize}`);
                 const data = await response.json();
-                this.persons = data.content;
-                this.currentPage = data.pageable.pageNumber;
-                this.totalPages = data.totalPages;
+        
+                // Verifica si los datos devueltos tienen la estructura esperada
+                if (data._embedded && data._embedded.personList) {
+                    this.persons = data._embedded.personList; // Lista de personas
+                } else {
+                    this.persons = []; // Si no hay datos, asegura manejar una lista vacía
+                }
+        
+                // Establece la paginación si está disponible
+                if (data.page) {
+                    this.currentPage = data.page.number; // Corrige propiedad del backend
+                    this.totalPages = data.page.totalPages; // Corrige propiedad del backend
+                } else {
+                    this.currentPage = 0;
+                    this.totalPages = 1;
+                }
             } catch (error) {
                 console.error('Error al obtener usuarios:', error);
-                alert('No se pudieron cargar los datos. Intenta más tarde.');
+                alert('Hubo un problema al cargar los usuarios. Verifica la consola para más detalles.');
             } finally {
                 this.isLoading = false;
             }
